@@ -1,0 +1,122 @@
+name: "📈 Stock Research Digest — Multi-Run"
+
+# ============================================================
+# Schedule: 5 runs per weekday, aligned to Indian market hours
+# All times in UTC (IST = UTC + 5:30)
+#
+#  Run | IST Time  | UTC Time | Purpose
+#  ----+-----------+----------+--------------------------------
+#   1  |  7:00 AM  | 01:30    | Pre-market (overnight recap)
+#   2  | 10:00 AM  | 04:30    | Post-open (first hour action)
+#   3  | 12:30 PM  | 07:00    | Midday update
+#   4  |  3:30 PM  | 10:00    | Pre-close (final hour)
+#   5  |  6:00 PM  | 12:30    | Post-close (EOD recap)
+#
+# Groq free-tier headroom:
+#   1,000 req/day ÷ 4 categories = 250 runs available → 5 runs is very safe
+#   Each run uses ~4 API calls and roughly 20,000–30,000 tokens
+# ============================================================
+
+on:
+  schedule:
+    # Run 1 — 7:00 AM IST (Pre-market, overnight recap — 8h lookback)
+    - cron: "30 1 * * 1-5"
+
+    # Run 2 — 10:00 AM IST (Post-open, first hour — 3h lookback)
+    - cron: "30 4 * * 1-5"
+
+    # Run 3 — 12:30 PM IST (Midday update — 3h lookback)
+    - cron: "0 7 * * 1-5"
+
+    # Run 4 — 3:30 PM IST (Pre-close — 3h lookback)
+    - cron: "0 10 * * 1-5"
+
+    # Run 5 — 6:00 PM IST (Post-close / EOD recap — 3h lookback)
+    - cron: "30 12 * * 1-5"
+
+  # Manual trigger from GitHub Actions tab — useful for testing
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: "Lookback window in hours (default: 3)"
+        required: false
+        default: "3"
+      dry_run:
+        description: "Dry run? (print digest, skip email)"
+        type: boolean
+        required: false
+        default: false
+      category:
+        description: "Single category to run (leave blank for all)"
+        required: false
+        default: ""
+        type: choice
+        options:
+          - ""
+          - analysis
+          - company_updates
+          - quarterly_updates
+          - macro
+
+jobs:
+  send-digest:
+    name: "Fetch → Summarise → Email"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Python setup ──────────────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # ── 3. Install dependencies ──────────────────────────────────────────────
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 4. Determine lookback window based on which cron fired ───────────────
+      #       Run 1 (01:30 UTC) gets 8h to cover overnight.
+      #       Runs 2-5 get 3h each (short enough to avoid repeated posts).
+      #       Manual dispatch uses the user-provided value.
+      - name: Set lookback hours
+        id: hours
+        run: |
+          MANUAL="${{ github.event.inputs.hours }}"
+          if [ -n "$MANUAL" ]; then
+            echo "hours=$MANUAL" >> "$GITHUB_OUTPUT"
+          elif [ "$(date -u +%H:%M)" \< "02:00" ]; then
+            # 01:30 UTC run → 8h to cover overnight gap
+            echo "hours=8" >> "$GITHUB_OUTPUT"
+          else
+            echo "hours=3" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 5. Generate and send digest ──────────────────────────────────────────
+      - name: Generate and send digest
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GMAIL_SENDER: ${{ secrets.GMAIL_SENDER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+        run: |
+          HOURS="${{ steps.hours.outputs.hours }}"
+          DRY_RUN="${{ github.event.inputs.dry_run || 'false' }}"
+          CATEGORY="${{ github.event.inputs.category }}"
+
+          ARGS="--hours $HOURS"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+
+          if [ -n "$CATEGORY" ]; then
+            ARGS="$ARGS --category $CATEGORY"
+          fi
+
+          python main.py $ARGS

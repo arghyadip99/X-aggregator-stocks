@@ -1,0 +1,71 @@
+# ============================================================
+# Stock Research Aggregator — Configuration
+# ============================================================
+# Handles are grouped into 4 categories.
+# Each category generates its own focused email digest.
+# Do NOT include the @ symbol. Add handles as you discover them.
+# ============================================================
+
+handles:
+
+  # ----------------------------------------------------------
+  # 📊 ANALYSIS
+  # Deep-dive stock picks, technical/fundamental analysis,
+  # conviction calls, buy/sell levels, chart setups.
+  # ----------------------------------------------------------
+  analysis:
+    - amurfalcon1
+    - Vihaan_001_
+    - samisosa1234
+    - patnaiksatish84
+    - sachprat07
+    - MithunSarkari
+
+  # ----------------------------------------------------------
+  # 🏢 COMPANY UPDATES
+  # Corporate actions, order wins, capex announcements,
+  # management interviews, business developments.
+  # ----------------------------------------------------------
+  company_updates:
+    - nileshkurhade
+
+  # ----------------------------------------------------------
+  # 📋 QUARTERLY UPDATES
+  # Q results, earnings summaries, concall highlights,
+  # revenue/PAT/margin comparisons, guidance updates.
+  # ----------------------------------------------------------
+  quarterly_updates:
+    - nid_rockz
+
+  # ----------------------------------------------------------
+  # 🌐 MACRO
+  # Economy, FII/DII flows, global cues, RBI/Budget policy,
+  # sector rotation, broad market views.
+  # ----------------------------------------------------------
+  macro:
+    # - handle_here
+    # - handle_here
+
+settings:
+  # How many hours back to look for posts
+  fetch_hours: 24
+
+  # Time to include in email subject (cosmetic only, actual scheduling via GitHub Actions)
+  digest_label: "Morning Digest"
+
+  # Nitter RSS instances — tried in order, falls back to next if one fails
+  # These are public Nitter instances; replace with a self-hosted one for reliability
+  nitter_instances:
+    # - https://nitter.privacydev.net
+    # - https://nitter.poast.org
+    - https://nitter.net
+    # - https://nitter.1d4.us
+
+  # Groq model to use (llama-3.3-70b-versatile is free and very capable)
+  groq_model: "llama-3.3-70b-versatile"
+
+  # Minimum post length to include (filters out very short/noise posts)
+  min_post_length: 30
+
+  # Delay between fetching each handle (seconds) — be polite to Nitter servers
+  fetch_delay_seconds: 1
