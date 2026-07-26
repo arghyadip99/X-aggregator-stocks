@@ -1,0 +1,9 @@
+{
+  "framework": {
+    "name": "angular",
+    "version": 19
+  },
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/frontend/browser",
+  "installCommand": "npm install"
+}

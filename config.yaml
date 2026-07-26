@@ -1,71 +1,94 @@
 # ============================================================
 # Stock Research Aggregator — Configuration
 # ============================================================
-# Handles are grouped into 4 categories.
-# Each category generates its own focused email digest.
-# Do NOT include the @ symbol. Add handles as you discover them.
+# Add X (Twitter) handles in the flat list below.
+# The AI will automatically categorise each post.
+# Do NOT include the @ symbol.
 # ============================================================
 
 handles:
+  - amurfalcon1
+  - Vihaan_001_
+  - samisosa1234
+  - patnaiksatish84
+  - sachprat07
+  - MithunSarkari
+  - nileshkurhade
+  - nid_rockz
+  # Add more handles here — no category assignment needed
 
-  # ----------------------------------------------------------
-  # 📊 ANALYSIS
-  # Deep-dive stock picks, technical/fundamental analysis,
-  # conviction calls, buy/sell levels, chart setups.
-  # ----------------------------------------------------------
-  analysis:
-    - amurfalcon1
-    - Vihaan_001_
-    - samisosa1234
-    - patnaiksatish84
-    - sachprat07
-    - MithunSarkari
+# ============================================================
+# Categories — fully dynamic, add/remove freely
+# Each becomes a separate email digest + frontend tab.
+# ============================================================
 
-  # ----------------------------------------------------------
-  # 🏢 COMPANY UPDATES
-  # Corporate actions, order wins, capex announcements,
-  # management interviews, business developments.
-  # ----------------------------------------------------------
-  company_updates:
-    - nileshkurhade
+categories:
 
-  # ----------------------------------------------------------
-  # 📋 QUARTERLY UPDATES
-  # Q results, earnings summaries, concall highlights,
-  # revenue/PAT/margin comparisons, guidance updates.
-  # ----------------------------------------------------------
-  quarterly_updates:
-    - nid_rockz
+  - id: analysis
+    label: "📊 Analysis"
+    color: "#0f3460"
+    enabled: true
+    prompt_focus: |
+      Stock picks, conviction calls, buy/sell price levels, technical chart setups,
+      fundamental deep-dives, valuation commentary, and entry/exit calls.
 
-  # ----------------------------------------------------------
-  # 🌐 MACRO
-  # Economy, FII/DII flows, global cues, RBI/Budget policy,
-  # sector rotation, broad market views.
-  # ----------------------------------------------------------
-  macro:
-    # - handle_here
-    # - handle_here
+  - id: company_updates
+    label: "🏢 Company Updates"
+    color: "#1a6b3c"
+    enabled: true
+    prompt_focus: |
+      Corporate actions, order wins, capex announcements, capacity expansions,
+      management interviews, promoter activity, and business model changes.
+
+  - id: quarterly_updates
+    label: "📋 Quarterly Updates"
+    color: "#7b4a00"
+    enabled: true
+    prompt_focus: |
+      Quarterly results (revenue, PAT, EBITDA margins), YoY/QoQ comparisons,
+      concall highlights, management guidance, and earnings surprises.
+
+  - id: macro
+    label: "🌐 Macro"
+    color: "#4a1a7b"
+    enabled: true
+    prompt_focus: |
+      FII/DII flows, RBI policy decisions, Union Budget commentary, global triggers
+      (US Fed, crude oil, currency), sector rotation, and broad Nifty/Sensex views.
+
+  # Template — copy-paste to add a new category:
+  # - id: ipo_watch
+  #   label: "🚀 IPO Watch"
+  #   color: "#b5451b"
+  #   enabled: false
+  #   prompt_focus: |
+  #     Upcoming IPOs, GMP trends, subscription data, allotment status,
+  #     listing day expectations, and post-listing performance.
+
+# ============================================================
+# Settings
+# ============================================================
 
 settings:
   # How many hours back to look for posts
   fetch_hours: 24
 
-  # Time to include in email subject (cosmetic only, actual scheduling via GitHub Actions)
-  digest_label: "Morning Digest"
-
-  # Nitter RSS instances — tried in order, falls back to next if one fails
-  # These are public Nitter instances; replace with a self-hosted one for reliability
+  # Nitter RSS instances — tried in order, first success wins
   nitter_instances:
-    # - https://nitter.privacydev.net
-    # - https://nitter.poast.org
     - https://nitter.net
-    # - https://nitter.1d4.us
 
-  # Groq model to use (llama-3.3-70b-versatile is free and very capable)
+  # Groq model for both categorisation and digest generation
   groq_model: "llama-3.3-70b-versatile"
 
-  # Minimum post length to include (filters out very short/noise posts)
+  # Minimum post length to include (filters noise/very short posts)
   min_post_length: 30
 
-  # Delay between fetching each handle (seconds) — be polite to Nitter servers
+  # Delay between fetching each handle (seconds) — be polite to Nitter
   fetch_delay_seconds: 1
+
+  # Groq retry settings (if API call fails)
+  groq_retries: 2
+  groq_retry_delay_seconds: 10
+
+  # Store digests and posts to Supabase (requires SUPABASE_URL + SUPABASE_SERVICE_KEY in .env)
+  use_supabase: true

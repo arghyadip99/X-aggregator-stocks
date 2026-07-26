@@ -21,30 +21,7 @@ logger = logging.getLogger(__name__)
 IST = timezone(timedelta(hours=5, minutes=30))
 
 # ---------------------------------------------------------------------------
-# Category Metadata
-# ---------------------------------------------------------------------------
-
-CATEGORIES = {
-    "analysis": {
-        "label": "📊 Analysis",
-        "color": "#0f3460",
-    },
-    "company_updates": {
-        "label": "🏢 Company Updates",
-        "color": "#1a6b3c",
-    },
-    "quarterly_updates": {
-        "label": "📋 Quarterly Updates",
-        "color": "#7b4a00",
-    },
-    "macro": {
-        "label": "🌐 Macro",
-        "color": "#4a1a7b",
-    },
-}
-
-# ---------------------------------------------------------------------------
-# System Prompts — one per category
+# Base prompt rules (shared across all categories)
 # ---------------------------------------------------------------------------
 
 _BASE_RULES = """
@@ -56,39 +33,6 @@ Rules:
 5. Use Indian stock market terminology (NSE/BSE codes, SME board, T2T, circuit filters).
 6. End with a SEBI disclaimer.
 """
-
-_SYSTEM_PROMPTS = {
-    "analysis": f"""You are an expert Indian equity research analyst specialising in BSE/NSE
-small-cap, micro-cap, and SME IPO stocks.
-
-Your job: digest stock analysis posts from Indian researchers on X (Twitter) and produce
-a focused HTML digest covering stock picks, conviction calls, buy/sell levels, technical
-setups, and fundamental insights.
-{_BASE_RULES}""",
-
-    "company_updates": f"""You are an expert Indian equity research analyst tracking corporate
-developments across BSE/NSE listed companies.
-
-Your job: digest posts about company-level news — order wins, capex plans, management
-interviews, corporate actions (dividends, buybacks, splits), business model changes,
-and any developments that affect a specific company's outlook.
-{_BASE_RULES}""",
-
-    "quarterly_updates": f"""You are an expert Indian equity analyst specialising in earnings
-analysis for BSE/NSE listed companies.
-
-Your job: digest posts covering quarterly results — revenue, PAT, EBITDA margins,
-YoY/QoQ comparisons, concall highlights, management guidance, and any notable beats
-or misses. Present numbers clearly and contextualise them.
-{_BASE_RULES}""",
-
-    "macro": f"""You are an expert Indian macro and equity strategist.
-
-Your job: digest posts covering the broad market — FII/DII flows, RBI policy, Union
-Budget commentary, global triggers (US Fed, crude oil, currency), sector rotation,
-and broad Nifty/Sensex outlook. Connect macro dots to Indian equity implications.
-{_BASE_RULES}""",
-}
 
 # ---------------------------------------------------------------------------
 # User Prompt Template — shared across all categories
@@ -162,6 +106,10 @@ def summarize(
     model_name: str = "llama-3.3-70b-versatile",
     lookback_hours: int = 24,
     category: str = "analysis",
+    category_label: str = "📊 Analysis",
+    prompt_focus: str = "Stock picks, conviction calls, and fundamental analysis.",
+    retries: int = 2,
+    retry_delay: float = 10.0,
 ) -> str:
     """
     Generate a category-specific HTML digest using Groq (Llama).
@@ -171,14 +119,23 @@ def summarize(
         api_key:        Groq API key.
         model_name:     Groq model identifier.
         lookback_hours: Lookback window (cosmetic, used in digest text).
-        category:       One of: analysis, company_updates, quarterly_updates, macro.
+        category:       Category ID string.
+        category_label: Human-readable label (e.g., '📊 Analysis').
+        prompt_focus:   Category-specific instructions from config.yaml.
+        retries:        Number of retry attempts on Groq failure.
+        retry_delay:    Seconds between retries.
 
     Returns:
         HTML string ready to be inserted into the email body.
     """
     client = Groq(api_key=api_key)
-    category_label = CATEGORIES.get(category, {}).get("label", category.replace("_", " ").title())
-    system_prompt = _SYSTEM_PROMPTS.get(category, _SYSTEM_PROMPTS["analysis"])
+
+    # Build system prompt dynamically from config prompt_focus
+    system_prompt = (
+        f"You are an expert Indian equity market analyst.\n\n"
+        f"Your focus for this digest: {prompt_focus.strip()}\n"
+        f"{_BASE_RULES}"
+    )
 
     if not posts:
         return (
@@ -203,28 +160,33 @@ def summarize(
 
     logger.info(f"[{category_label}] Sending {len(posts)} posts to Groq ({model_name}) …")
 
-    try:
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.3,
-            max_tokens=4096,
-        )
-        html = response.choices[0].message.content.strip()
+    for attempt in range(retries + 1):
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.3,
+                max_tokens=4096,
+            )
+            html = response.choices[0].message.content.strip()
 
-        # Strip accidental markdown code fences if the model adds them
-        if html.startswith("```"):
-            html = html.split("```", 2)[1]
-            if html.startswith("html"):
-                html = html[4:]
-            html = html.rsplit("```", 1)[0].strip()
+            # Strip accidental markdown code fences if the model adds them
+            if html.startswith("```"):
+                html = html.split("```", 2)[1]
+                if html.startswith("html"):
+                    html = html[4:]
+                html = html.rsplit("```", 1)[0].strip()
 
-        logger.info(f"[{category_label}] Digest generated successfully.")
-        return html
+            logger.info(f"[{category_label}] Digest generated successfully.")
+            return html
 
-    except Exception as e:
-        logger.error(f"[{category_label}] Groq API error: {e}")
-        raise
+        except Exception as e:
+            if attempt < retries:
+                logger.warning(f"[{category_label}] Groq attempt {attempt + 1} failed: {e}. Retrying in {retry_delay}s …")
+                import time; time.sleep(retry_delay)
+            else:
+                logger.error(f"[{category_label}] Groq API error: {e}")
+                raise

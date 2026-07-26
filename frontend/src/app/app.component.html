@@ -1,0 +1,150 @@
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- Header                                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">📈</span>
+      <div>
+        <h1>India Stock Digest</h1>
+        <p>AI-curated research from top Indian equity researchers</p>
+      </div>
+    </div>
+    <button class="refresh-btn" (click)="loadDigests()" [disabled]="loading()">
+      <span [class.spinning]="loading()">⟳</span>
+      Refresh
+    </button>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- Category Tabs                                             -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<nav class="tab-bar">
+  <div class="tab-bar-inner">
+    @for (cat of categories; track cat.id) {
+      <button
+        class="tab"
+        [class.active]="activeTab() === cat.id"
+        [style.--cat-color]="cat.color"
+        (click)="setTab(cat.id)"
+      >
+        <span class="tab-icon">{{ cat.icon }}</span>
+        <span class="tab-label">{{ cat.label }}</span>
+        @if (getDigestForCategory(cat.id); as d) {
+          <span class="tab-badge">{{ d.num_posts }}</span>
+        }
+      </button>
+    }
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- Main Content                                              -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<main class="content">
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="state-box">
+      <div class="spinner"></div>
+      <p>Loading digest…</p>
+    </div>
+  }
+
+  <!-- Error -->
+  @else if (error()) {
+    <div class="state-box error">
+      <span>⚠️</span>
+      <p>{{ error() }}</p>
+      <button (click)="loadDigests()">Retry</button>
+    </div>
+  }
+
+  <!-- Digest -->
+  @else if (activeDigest()) {
+    <!-- Meta bar -->
+    <div class="meta-bar" [style.border-color]="activeCategory().color">
+      <div class="meta-items">
+        <span class="meta-item">
+          <span class="meta-icon">📄</span>
+          {{ activeDigest()!.num_posts }} posts
+        </span>
+        <span class="meta-item">
+          <span class="meta-icon">👤</span>
+          {{ activeDigest()!.num_handles }} researchers
+        </span>
+        <span class="meta-item">
+          <span class="meta-icon">🕐</span>
+          Last {{ activeDigest()!.lookback_hours }}h
+        </span>
+        <span class="meta-item">
+          <span class="meta-icon">🔄</span>
+          Updated {{ activeDigest()!.run_at | date:'d MMM, h:mm a' }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Digest HTML content -->
+    <div class="digest-card">
+      <div class="digest-body" [innerHTML]="getSafeHtml(activeDigest()!.digest_html)"></div>
+    </div>
+  }
+
+  <!-- Empty state -->
+  @else {
+    <div class="state-box empty">
+      <span>📭</span>
+      <h3>No digest yet for {{ activeCategory().icon }} {{ activeCategory().label }}</h3>
+      <p>Add handles to this category in <code>config.yaml</code> and run the aggregator.</p>
+    </div>
+  }
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- Subscribe Banner                                          -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="subscribe-section">
+  <div class="subscribe-inner">
+    <div class="subscribe-text">
+      <h2>📬 Get digests in your inbox</h2>
+      <p>Subscribe to receive all four category digests daily — free forever.</p>
+    </div>
+    <form class="subscribe-form" (ngSubmit)="subscribe()">
+      <input
+        type="email"
+        placeholder="your@email.com"
+        [(ngModel)]="subscribeEmail"
+        name="email"
+        [disabled]="subscribeStatus() === 'loading' || subscribeStatus() === 'success'"
+      />
+      <button
+        type="submit"
+        [disabled]="subscribeStatus() === 'loading' || subscribeStatus() === 'success'"
+      >
+        @if (subscribeStatus() === 'loading') { Subscribing… }
+        @else if (subscribeStatus() === 'success') { Subscribed ✓ }
+        @else { Subscribe }
+      </button>
+    </form>
+    @if (subscribeMessage()) {
+      <p class="subscribe-msg" [class.success]="subscribeStatus() === 'success'"
+                               [class.error]="subscribeStatus() === 'error'">
+        {{ subscribeMessage() }}
+      </p>
+    }
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- Footer                                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<footer class="site-footer">
+  <p>
+    India Stock Digest · AI-powered by
+    <a href="https://groq.com" target="_blank">Groq</a> ·
+    Built with ❤️ for Indian equity investors ·
+    <span class="disclaimer">Not SEBI-registered investment advice</span>
+  </p>
+</footer>

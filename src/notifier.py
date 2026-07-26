@@ -215,15 +215,6 @@ Please open this email in Gmail or another modern email client.
 # Send Email
 # ---------------------------------------------------------------------------
 
-# Category metadata (mirrors summarizer.py)
-_CATEGORY_META = {
-    "analysis":          {"label": "📊 Analysis",          "color": "#0f3460"},
-    "company_updates":   {"label": "🏢 Company Updates",   "color": "#1a6b3c"},
-    "quarterly_updates": {"label": "📋 Quarterly Updates", "color": "#7b4a00"},
-    "macro":             {"label": "🌐 Macro",             "color": "#4a1a7b"},
-}
-
-
 def send_digest(
     digest_html: str,
     sender_email: str,
@@ -233,28 +224,29 @@ def send_digest(
     num_posts: int,
     lookback_hours: int = 24,
     category: str = "analysis",
+    category_label: str = "📊 Analysis",
+    category_color: str = "#0f3460",
 ) -> None:
     """
     Send the HTML digest email via Gmail SMTP using an App Password.
 
     Args:
         digest_html:      The Groq-generated HTML content.
-        sender_email:     Your Gmail address (must match app_password account).
+        sender_email:     Your Gmail address.
         app_password:     Gmail App Password (16-char, spaces allowed).
-        recipient_email:  Where to deliver the digest (can be same as sender).
+        recipient_email:  Delivery address.
         num_handles:      Number of handles tracked (for stats bar).
         num_posts:        Number of posts analysed (for stats bar).
         lookback_hours:   Lookback window (for stats bar).
-        category:         One of: analysis, company_updates, quarterly_updates, macro.
+        category:         Category ID (for logging).
+        category_label:   Human-readable label from config (e.g., '📊 Analysis').
+        category_color:   Hex colour from config (e.g., '#0f3460').
     """
-    meta = _CATEGORY_META.get(category, {"label": category.replace("_", " ").title(), "color": "#0f3460"})
-    category_label = meta["label"]
-    header_color = meta["color"]
-
     now_ist = datetime.now(IST)
     date_str = now_ist.strftime("%d %B %Y")
     gen_time = now_ist.strftime("%H:%M")
     subject = f"{category_label} Digest — {date_str}"
+    header_color = category_color
 
     # Build full HTML
     full_html = _HTML_SHELL.format(

@@ -19,3 +19,7 @@ build/
 .vscode/
 .idea/
 *.swp
+
+# Frontend build artifacts (Vercel builds from source)
+frontend/dist/
+frontend/node_modules/
